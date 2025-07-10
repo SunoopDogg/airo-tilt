@@ -12,3 +12,10 @@ services:
     volumes:
       - .:/root/airo-tilt
       - /tmp/.X11-unix:/tmp/.X11-unix
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
