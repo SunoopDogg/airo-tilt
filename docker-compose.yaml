@@ -1,0 +1,14 @@
+name: airo-tilt
+
+services:
+  python:
+    build: .
+    container_name: airo-tilt
+    tty: true
+    ipc: host
+    environment:
+      - DISPLAY=$DISPLAY
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - .:/root/airo-tilt
+      - /tmp/.X11-unix:/tmp/.X11-unix
