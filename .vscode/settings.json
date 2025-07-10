@@ -1,8 +1,22 @@
 {
   "cSpell.words": [
-    "airo",
+    "autocast",
+    "cudnn",
+    "edgecolor",
+    "facecolor",
+    "figsize",
+    "fontsize",
+    "hiera",
     "imread",
     "imshow",
-    "imwrite"
+    "inaxes",
+    "LBUTTONDOWN",
+    "markeredgecolor",
+    "markeredgewidth",
+    "markersize",
+    "multimask",
+    "ndarray",
+    "xdata",
+    "ydata"
   ]
 }
