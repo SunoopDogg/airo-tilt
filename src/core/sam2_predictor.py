@@ -43,14 +43,20 @@ class SAM2Predictor:
         )
         # (batch_size) x (num_predicted_masks_per_input) x H x W
         print(f"Masks shape: {masks.shape}")
+        print(f"Scores shape: {scores.shape}")
 
         return masks, scores, logits
 
     def _select_best_masks(self, masks: np.ndarray, scores: np.ndarray, coordinates: List[Tuple[int, int]]) -> List[np.ndarray]:
         """가장 높은 점수의 마스크들을 선택합니다."""
-        best_mask_indices = np.argmax(scores, axis=1)
-        best_masks = [masks[i][best_mask_indices[i]]
-                      for i in range(len(coordinates))]
+        if len(coordinates) == 1:
+            best_mask_index = np.argmax(scores)
+            best_masks = [masks[best_mask_index]]
+        else:
+            best_mask_indices = np.argmax(scores, axis=1)
+            best_masks = [masks[i][best_mask_indices[i]]
+                          for i in range(len(coordinates))]
+
         return best_masks
 
     def predict_masks(self, image_name: str, coordinates: List[Tuple[int, int]]) -> Tuple[np.ndarray, List[np.ndarray]]:

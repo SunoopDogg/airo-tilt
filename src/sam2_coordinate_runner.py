@@ -1,5 +1,6 @@
 import matplotlib
 import numpy as np
+import matplotlib.pyplot as plt
 
 from typing import List
 
@@ -21,11 +22,17 @@ def apply_sam2_to_coordinates(image_name: str, coordinates: List[tuple]) -> List
     # 결과 시각화
     Visualizer.show_masks_on_image(image, best_masks)
 
+    # 마스크의 컨투어 추출
+    contours = [Visualizer.extract_rectangle_contour(
+        mask) for mask in best_masks]
+    # 컨투어 시각화
+    Visualizer.show_contours_on_image(image, contours)
+
     return best_masks
 
 
 if __name__ == "__main__":
-    FILE_NAME = 'IMG_0940.jpg'
+    FILE_NAME = 'erica4.jpeg'
 
     try:
         collector = CoordinateCollector(FILE_NAME)
