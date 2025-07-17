@@ -13,7 +13,7 @@ class Visualizer:
         """이미지에 마스크들을 시각화합니다."""
         plt.figure(figsize=(10, 10))
         plt.imshow(image)
-        for i, mask in enumerate(masks):
+        for mask in masks:
             Visualizer.show_mask(mask, plt.gca(), random_color=True)
         plt.axis('off')
         plt.show()
