@@ -2,14 +2,32 @@ FROM python:3.10.18-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update 
-RUN apt-get install -y git
+# curl and ca-certificates dependencies
+RUN apt-get update \
+    && apt-get install -y \
+        curl \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get install -y libgtk2.0-dev
-RUN apt-get install -y libgl1-mesa-glx
+# uv installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+ENV PATH="/root/.local/bin/:$PATH"
 
-RUN apt-get install -y tk
+# git and git-lfs dependencies
+RUN apt-get update \
+    && apt-get install -y \
+        git \
+        git-lfs \
+    && rm -rf /var/lib/apt/lists/*
+RUN git lfs install
 
-RUN rm -rf /var/lib/apt/lists/* 
+# GUI / Rendering dependencies
+RUN apt-get update \
+    && apt-get install -y \
+        libgtk2.0-dev \
+        libgl1 \
+        tk \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root
