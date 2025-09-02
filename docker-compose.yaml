@@ -1,17 +1,22 @@
-name: airo-tilt
-
 services:
-  python:
-    build: .
+  airo-tilt:
+    build:
+      context: .
+    image: python3.10.18:slim-debian12-uv
     container_name: airo-tilt
     tty: true
     ipc: host
     environment:
-      - DISPLAY=$DISPLAY
+      - DISPLAY=${DISPLAY:-host.docker.internal:0}
       - QT_X11_NO_MITSHM=1
     volumes:
       - .:/root/airo-tilt
       - /tmp/.X11-unix:/tmp/.X11-unix
+
+  airo-tilt-gpu:
+    extends:
+      service: airo-tilt
+    container_name: airo-tilt-gpu
     deploy:
       resources:
         reservations:
@@ -19,3 +24,5 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    profiles:
+      - gpu
