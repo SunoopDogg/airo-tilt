@@ -4,7 +4,7 @@ import torch
 class DeviceManager:
     @staticmethod
     def get_device() -> torch.device:
-        """최적의 디바이스를 선택하고 설정합니다."""
+        """최적 연산 디바이스 자동 선택"""
         if torch.cuda.is_available():
             device = torch.device("cuda")
         elif torch.backends.mps.is_available():
@@ -17,7 +17,7 @@ class DeviceManager:
 
     @staticmethod
     def configure_device(device: torch.device) -> None:
-        """디바이스별 최적화 설정을 적용합니다."""
+        """디바이스별 최적화 옵션 설정 적용"""
         if device.type == "cuda":
             torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
             if torch.cuda.get_device_properties(0).major >= 8:
