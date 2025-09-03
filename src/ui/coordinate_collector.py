@@ -26,7 +26,7 @@ class CoordinateCollector:
         self.current_rect = None
 
     def _on_click(self, event) -> None:
-        """마우스 클릭 이벤트 처리"""
+        """마우스 클릭 이벤트 핸들링"""
         if event.inaxes != self.ax:
             return
 
@@ -36,7 +36,7 @@ class CoordinateCollector:
             self._handle_box_click(event)
 
     def _handle_point_click(self, event) -> None:
-        """포인트 모드에서 마우스 클릭 처리"""
+        """포인트 모드에서 클릭 처리 및 좌표 저장"""
         if event.button == 1:  # 왼쪽 클릭
             x, y = int(event.xdata), int(event.ydata)
             self.coordinates.append((x, y))
@@ -48,7 +48,7 @@ class CoordinateCollector:
             self.fig.canvas.draw()
 
     def _handle_box_click(self, event) -> None:
-        """박스 모드에서 마우스 클릭 처리"""
+        """박스 모드에서 드래그 시작점 설정"""
         if event.button == 1:  # 왼쪽 클릭 - 드래그 시작
             if not self.dragging:
                 self.dragging = True
@@ -56,7 +56,7 @@ class CoordinateCollector:
                 print(f"Box drag started at: {self.start_pos}")
 
     def _on_mouse_move(self, event) -> None:
-        """마우스 이동 이벤트 처리 (드래그 중일 때)"""
+        """드래그 중 실시간 박스 미리보기 표시"""
         if self.mode == 'box' and self.dragging and event.inaxes == self.ax:
             if self.current_rect:
                 self.current_rect.remove()
@@ -76,7 +76,7 @@ class CoordinateCollector:
             self.fig.canvas.draw()
 
     def _on_mouse_release(self, event) -> None:
-        """마우스 릴리스 이벤트 처리 (드래그 종료)"""
+        """드래그 종료 시 최종 박스 좌표 저장"""
         if self.mode == 'box' and self.dragging and event.inaxes == self.ax:
             self.dragging = False
             x1, y1 = self.start_pos
@@ -112,7 +112,7 @@ class CoordinateCollector:
             self.start_pos = None
 
     def _on_key_press(self, event) -> None:
-        """키보드 이벤트 처리"""
+        """키보드 단축키 명령 처리"""
         if event.key == 'c':
             self._clear_all()
         elif event.key == 's':
@@ -129,13 +129,13 @@ class CoordinateCollector:
         self._update_title()
 
     def _load_and_display_image(self) -> None:
-        """이미지를 로드하고 matplotlib으로 표시합니다."""
+        """이미지 로드 및 matplotlib 화면에 표시"""
         self.image = ImageLoader.load_image(self.image_name)
 
-        self.fig, self.ax = plt.subplots(figsize=(12, 10))
+        self.fig, self.ax = plt.subplots(figsize=(10, 10))
         self.ax.imshow(self.image)
         self._update_title()
-        self.ax.axis('on')  # 좌표 표시를 위해 축 켜기
+        self.ax.axis('off')
 
         # 이벤트 연결
         self.fig.canvas.mpl_connect('button_press_event', self._on_click)
@@ -145,7 +145,7 @@ class CoordinateCollector:
         self.fig.canvas.mpl_connect('key_press_event', self._on_key_press)
 
     def _update_title(self) -> None:
-        """제목 업데이트"""
+        """화면 제목 및 조작 가이드 업데이트"""
         mode_text = "POINT" if self.mode == 'point' else "BOX"
         if self.mode == 'point':
             instruction = "Click: Add Point"
@@ -158,7 +158,7 @@ class CoordinateCollector:
         )
 
     def _clear_coordinates(self) -> None:
-        """좌표를 지우고 이미지를 다시 그립니다."""
+        """좌표 데이터 초기화 및 화면 재렌더링"""
         print("Clearing coordinates...")
         self.coordinates.clear()
 
@@ -171,7 +171,7 @@ class CoordinateCollector:
         self.fig.canvas.draw()
 
     def _clear_all(self) -> None:
-        """모든 데이터를 지우고 이미지를 다시 그립니다."""
+        """모든 데이터 초기화 및 화면 재렌더링"""
         print("Clearing all data...")
         self.coordinates.clear()
         self.boxes.clear()
@@ -187,7 +187,7 @@ class CoordinateCollector:
         self.fig.canvas.draw()
 
     def _save_coordinates(self) -> None:
-        """현재 좌표를 파일에 저장합니다."""
+        """포인트 좌표를 텍스트 파일로 저장"""
         if self.coordinates:
             with open('coordinates.txt', 'w') as f:
                 for coord in self.coordinates:
@@ -197,7 +197,7 @@ class CoordinateCollector:
             print("No coordinates to save.")
 
     def _save_data(self) -> None:
-        """현재 좌표와 박스 데이터를 파일에 저장합니다."""
+        """수집된 모든 데이터를 텍스트 파일로 저장"""
         saved_something = False
 
         if self.coordinates:
@@ -219,20 +219,20 @@ class CoordinateCollector:
             print("No data to save.")
 
     def collect_coordinates(self) -> List[Tuple[int, int]]:
-        """사용자로부터 좌표를 수집합니다."""
+        """사용자 인터랙션을 통한 포인트 좌표 수집"""
         self._load_and_display_image()
         plt.show()
         return self.coordinates
 
     def collect_boxes(self) -> List[Tuple[int, int, int, int]]:
-        """사용자로부터 박스를 수집합니다."""
+        """사용자 인터랙션을 통한 바운딩 박스 수집"""
         self.mode = 'box'
         self._load_and_display_image()
         plt.show()
         return self.boxes
 
     def collect_data(self) -> Tuple[List[Tuple[int, int]], List[Tuple[int, int, int, int]]]:
-        """사용자로부터 좌표와 박스 모두를 수집합니다."""
+        """사용자 인터랙션을 통한 전체 데이터 수집"""
         self._load_and_display_image()
         plt.show()
         return self.coordinates, self.boxes

@@ -22,11 +22,11 @@ class SAM2Predictor:
         self.predictor = SAM2ImagePredictor(self.sam2_model)
 
     def _load_and_preprocess_image(self, image_name: str) -> np.ndarray:
-        """이미지를 로드하고 전처리합니다."""
+        """이미지 로드 및 전처리 수행"""
         return ImageLoader.load_image(image_name)
 
     def _prepare_input_data(self, coordinates: List[Tuple[int, int]]) -> Tuple[np.ndarray, np.ndarray]:
-        """좌표 데이터를 모델 입력 형식으로 변환합니다."""
+        """좌표 데이터를 SAM2 모델 입력 형식으로 변환"""
         input_points = np.array([
             [[coord[0], coord[1]]] for coord in coordinates
         ])
@@ -35,7 +35,7 @@ class SAM2Predictor:
         return input_points, input_labels
 
     def _prepare_points_data(self, coordinates: List[Tuple[int, int]]) -> Tuple[np.ndarray, np.ndarray]:
-        """포인트 좌표 데이터를 모델 입력 형식으로 변환합니다."""
+        """포인트 좌표 데이터를 SAM2 모델 입력 형식으로 변환"""
         input_points = np.array([
             [[coord[0], coord[1]]] for coord in coordinates
         ])
@@ -44,7 +44,7 @@ class SAM2Predictor:
         return input_points, input_labels
 
     def _prepare_boxes_data(self, boxes: List[Tuple[int, int, int, int]]) -> np.ndarray:
-        """여러 박스 데이터를 모델 입력 형식으로 변환합니다."""
+        """바운딩 박스 데이터를 SAM2 모델 입력 형식으로 변환"""
         # boxes format: [(x1, y1, x2, y2), ...]
         input_boxes = np.array([
             [box[0], box[1], box[2], box[3]] for box in boxes
@@ -52,7 +52,7 @@ class SAM2Predictor:
         return input_boxes
 
     def _perform_prediction(self, input_points: np.ndarray, input_labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """SAM2 모델을 사용해 예측을 수행합니다."""
+        """SAM2 모델 사용하여 마스크 예측 수행"""
         masks, scores, logits = self.predictor.predict(
             point_coords=input_points,
             point_labels=input_labels,
@@ -65,7 +65,7 @@ class SAM2Predictor:
         return masks, scores, logits
 
     def _perform_points_prediction(self, input_points: np.ndarray, input_labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """SAM2 모델을 사용해 포인트 기반 예측을 수행합니다."""
+        """포인트 기반 SAM2 모델 예측 수행"""
         masks, scores, logits = self.predictor.predict(
             point_coords=input_points,
             point_labels=input_labels,
@@ -77,7 +77,7 @@ class SAM2Predictor:
         return masks, scores, logits
 
     def _perform_boxes_prediction(self, input_boxes: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """SAM2 모델을 사용해 여러 박스 기반 예측을 수행합니다."""
+        """바운딩 박스 기반 SAM2 모델 예측 수행"""
         masks, scores, logits = self.predictor.predict(
             point_coords=None,
             point_labels=None,
@@ -90,7 +90,7 @@ class SAM2Predictor:
         return masks, scores, logits
 
     def _select_best_masks(self, masks: np.ndarray, scores: np.ndarray, coordinates: List[Tuple[int, int]]) -> List[np.ndarray]:
-        """가장 높은 점수의 마스크들을 선택합니다."""
+        """신뢰도 점수 기반으로 최적 마스크 선택"""
         if len(coordinates) == 1:
             best_mask_index = np.argmax(scores)
             best_masks = [masks[best_mask_index]]
@@ -102,7 +102,7 @@ class SAM2Predictor:
         return best_masks
 
     def predict_masks_from_points(self, image_name: str, coordinates: List[Tuple[int, int]]) -> Tuple[np.ndarray, List[np.ndarray]]:
-        """이미지와 포인트 좌표를 기반으로 마스크를 예측합니다."""
+        """포인트 좌표 기반으로 객체 마스크 예측"""
         # 이미지 로드 및 전처리
         image = self._load_and_preprocess_image(image_name)
         self.predictor.set_image(image)
@@ -120,7 +120,7 @@ class SAM2Predictor:
         return image, best_masks
 
     def predict_masks_from_boxes(self, image_name: str, boxes: List[Tuple[int, int, int, int]]) -> Tuple[np.ndarray, List[np.ndarray]]:
-        """이미지와 여러 박스를 기반으로 마스크를 예측합니다."""
+        """바운딩 박스 기반으로 객체 마스크 예측"""
         # 이미지 로드 및 전처리
         image = self._load_and_preprocess_image(image_name)
         self.predictor.set_image(image)
