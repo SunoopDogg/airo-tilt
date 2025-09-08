@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
-from typing import List
+from typing import List, Optional
 
 from matplotlib.axes import Axes
 
@@ -129,6 +129,101 @@ class Visualizer:
 
         plt.title(f'All Normalized Rectangle Contours Overlay ({len(valid_contours)} objects)',
                   fontsize=16, fontweight='bold')
+        plt.axis('off')
+        plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def show_contours_and_aruco_pose(image: np.ndarray, contours_list: List[np.ndarray],
+                                     aruco_data: Optional[dict] = None) -> None:
+        """모든 정규화된 컨투어와 ArUco 마커 포즈를 함께 시각화
+
+        Args:
+            image: 배경 이미지
+            contours_list: 정규화된 컨투어들의 리스트
+            aruco_data: ArUco 마커 데이터 (corners, ids, r_vectors, t_vectors, detector 포함)
+        """
+        import cv2
+
+        # 이미지 복사본 생성
+        img_with_aruco = image.copy()
+
+        # ArUco 마커와 포즈 축 그리기 (있는 경우)
+        if aruco_data is not None and 'detector' in aruco_data:
+            detector = aruco_data['detector']
+            corners = aruco_data.get('corners', [])
+            ids = aruco_data.get('ids', None)
+            r_vectors = aruco_data.get('r_vectors', None)
+            t_vectors = aruco_data.get('t_vectors', None)
+
+            if corners and ids is not None:
+                # ArUco 마커 테두리와 포즈 축 그리기
+                img_with_aruco = detector.draw_markers(
+                    img_with_aruco, corners, ids, r_vectors, t_vectors
+                )
+
+        # matplotlib 설정
+        plt.figure(figsize=(12, 10))
+        plt.imshow(img_with_aruco)
+        ax = plt.gca()
+
+        # 색상 팔레트 정의
+        object_colors = ['yellow', 'cyan', 'magenta',
+                         'orange', 'lime', 'pink', 'purple', 'brown']
+        vertex_colors = ['red', 'green', 'blue', 'white']
+        vertex_labels = ['TL', 'TR', 'BR', 'BL']
+
+        # 유효한 컨투어 필터링
+        valid_contours = []
+        for i, contour in enumerate(contours_list):
+            if contour.size > 0 and len(contour) == 4:
+                valid_contours.append((i, contour))
+
+        # 컨투어 오버레이
+        for obj_idx, contour in valid_contours:
+            object_color = object_colors[obj_idx % len(object_colors)]
+
+            # 사각형 그리기 (닫힌 형태)
+            rectangle = np.vstack([contour, contour[0:1]])
+            ax.plot(rectangle[:, 0], rectangle[:, 1],
+                    color=object_color, linewidth=2.5, alpha=0.8,
+                    label=f'Object {obj_idx + 1}')
+
+            # 각 꼭짓점 표시
+            for vertex_idx, vertex in enumerate(contour):
+                vertex_color = vertex_colors[vertex_idx]
+
+                # 꼭짓점 원으로 표시
+                if vertex_color == 'white':
+                    ax.plot(vertex[0], vertex[1], 'o', color=vertex_color, markersize=6,
+                            markeredgecolor='black', markeredgewidth=1.5)
+                else:
+                    ax.plot(vertex[0], vertex[1], 'o',
+                            color=vertex_color, markersize=6)
+
+                # 꼭짓점 라벨 표시
+                ax.text(vertex[0] + 10, vertex[1] - 10,
+                        f'{obj_idx + 1}-{vertex_labels[vertex_idx]}',
+                        fontsize=8, fontweight='bold', color='black',
+                        bbox=dict(facecolor='white', alpha=0.8, edgecolor='black', pad=1))
+
+        # ArUco 정보 텍스트 추가
+        if aruco_data is not None:
+            marker_id = aruco_data.get('marker_id', 'Unknown')
+            info_text = f"ArUco Marker ID: {marker_id} (with 3D pose axes)"
+            ax.text(10, 30, info_text, fontsize=12, fontweight='bold',
+                    color='white', bbox=dict(facecolor='blue', alpha=0.7, pad=5))
+
+        # 제목 설정
+        title = f'Enhanced Visualization: {len(valid_contours)} Objects'
+        if aruco_data is not None:
+            title += ' + ArUco Pose Reference'
+        plt.title(title, fontsize=16, fontweight='bold')
+
+        # 범례 표시
+        if valid_contours:
+            plt.legend(loc='upper right', fontsize=10)
+
         plt.axis('off')
         plt.tight_layout()
         plt.show()
