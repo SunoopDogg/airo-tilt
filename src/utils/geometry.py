@@ -221,3 +221,42 @@ class Geometry:
                     result["summary"]["average_tilt_per_side"].append(avg_tilt)
 
         return result
+
+    @staticmethod
+    def analyze_tilt_from_base_contour(base_contour: np.ndarray, comparison_contours: List[np.ndarray]) -> dict:
+        """주어진 base 컨투어를 기준으로 다른 컨투어들의 기울기 차이를 분석
+        
+        Args:
+            base_contour: 기준이 되는 정규화된 컨투어 (예: ArUco 마커)
+            comparison_contours: 비교할 정규화된 컨투어들의 리스트
+            
+        Returns:
+            분석 결과를 담은 딕셔너리
+        """
+        if base_contour is None or not comparison_contours:
+            return {"error": "Invalid base_contour or comparison_contours"}
+        
+        # 기울기 차이 계산
+        tilt_differences = Geometry.calculate_tilt_differences(
+            base_contour, comparison_contours)
+        
+        # 결과 정리
+        result = {
+            "base_angles": Geometry.calculate_side_angles(base_contour).tolist(),
+            "tilt_differences": [diff.tolist() for diff in tilt_differences],
+            "summary": {
+                "total_contours": len(comparison_contours),
+                "average_tilt_per_side": []
+            }
+        }
+        
+        # 각 변별 평균 기울기 차이 계산
+        if tilt_differences:
+            for side in range(4):
+                side_diffs = [diff[side]
+                             for diff in tilt_differences if len(diff) > side]
+                if side_diffs:
+                    avg_tilt = np.mean(side_diffs)
+                    result["summary"]["average_tilt_per_side"].append(avg_tilt)
+        
+        return result
