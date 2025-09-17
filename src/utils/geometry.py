@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from typing import List
+from typing import List, Tuple
 
 
 class Geometry:
@@ -220,6 +220,149 @@ class Geometry:
                     avg_tilt = np.mean(side_diffs)
                     result["summary"]["average_tilt_per_side"].append(avg_tilt)
 
+        return result
+
+    @staticmethod
+    def calculate_reference_angle_from_markers(aruco_contours: List[np.ndarray], aruco_data: dict) -> float:
+        """ArUco 마커들로부터 기준 각도를 계산
+        
+        Args:
+            aruco_contours: ArUco 마커들의 정규화된 컨투어 리스트
+            aruco_data: ArUco 마커 데이터 (centroids 포함)
+            
+        Returns:
+            기준 각도 (도 단위, 수직선이 0도)
+        """
+        if not aruco_data or 'centroids' not in aruco_data:
+            return 0.0
+            
+        centroids = aruco_data['centroids']
+        
+        if len(centroids) >= 2:
+            # 2개 이상의 ArUco 마커: 중심점들을 연결한 선의 각도
+            # 첫 두 마커의 중심점 연결
+            centroid1 = centroids[0]
+            centroid2 = centroids[1]
+            
+            # 벡터 계산
+            vector = centroid2 - centroid1
+            
+            # 각도 계산 (라디안 -> 도), 수직선 기준 (90도 빼기)
+            angle = np.arctan2(vector[1], vector[0]) * 180 / np.pi
+            reference_angle = angle - 90  # 수직선을 0도로 만들기
+            
+            # -180 ~ 180 범위로 정규화
+            if reference_angle > 180:
+                reference_angle -= 360
+            elif reference_angle < -180:
+                reference_angle += 360
+                
+            print(f"Multiple ArUco markers: Using line between centroids, Reference angle: {reference_angle:.2f}°")
+            
+        else:
+            # 1개의 ArUco 마커: 중심을 지나는 수직선 (0도)
+            reference_angle = 0.0
+            print(f"Single ArUco marker: Using vertical line through centroid, Reference angle: {reference_angle:.2f}°")
+            
+        return reference_angle
+    
+    @staticmethod
+    def calculate_vertical_line_angles(vertices: np.ndarray) -> Tuple[float, float]:
+        """사각형의 수직선 각도들을 계산 (왼쪽 선, 오른쪽 선)
+        
+        Args:
+            vertices: 정규화된 4개의 꼭짓점 좌표 배열 (4, 2)
+            [LT, RT, RB, LB] 순서
+            
+        Returns:
+            (왼쪽 수직선 각도, 오른쪽 수직선 각도) - 도 단위
+        """
+        if len(vertices) != 4:
+            return 0.0, 0.0
+            
+        # 왼쪽 수직선: LT(0) -> LB(3)
+        left_vector = vertices[3] - vertices[0]
+        left_angle = np.arctan2(left_vector[1], left_vector[0]) * 180 / np.pi - 90
+        
+        # 오른쪽 수직선: RT(1) -> RB(2)  
+        right_vector = vertices[2] - vertices[1]
+        right_angle = np.arctan2(right_vector[1], right_vector[0]) * 180 / np.pi - 90
+        
+        # -180 ~ 180 범위로 정규화
+        if left_angle > 180:
+            left_angle -= 360
+        elif left_angle < -180:
+            left_angle += 360
+            
+        if right_angle > 180:
+            right_angle -= 360
+        elif right_angle < -180:
+            right_angle += 360
+            
+        return left_angle, right_angle
+    
+    @staticmethod
+    def analyze_vertical_tilt_differences(reference_angle: float, contours: List[np.ndarray]) -> dict:
+        """기준 각도에 대한 사각형들의 수직선 기울기 차이를 분석
+        
+        Args:
+            reference_angle: 기준 각도 (도 단위)
+            contours: 비교할 정규화된 컨투어들의 리스트
+            
+        Returns:
+            분석 결과를 담은 딕셔너리
+        """
+        if not contours:
+            return {"error": "No contours to analyze"}
+            
+        tilt_differences = []
+        vertical_angles = []
+        
+        for contour in contours:
+            if len(contour) != 4:
+                continue
+                
+            # 수직선 각도 계산
+            left_angle, right_angle = Geometry.calculate_vertical_line_angles(contour)
+            vertical_angles.append({
+                'left': left_angle,
+                'right': right_angle
+            })
+            
+            # 기준 각도와의 차이 계산
+            left_diff = left_angle - reference_angle
+            right_diff = right_angle - reference_angle
+            
+            # -180 ~ 180 범위로 정규화
+            if left_diff > 180:
+                left_diff -= 360
+            elif left_diff < -180:
+                left_diff += 360
+                
+            if right_diff > 180:
+                right_diff -= 360
+            elif right_diff < -180:
+                right_diff += 360
+                
+            tilt_differences.append({
+                'left_diff': left_diff,
+                'right_diff': right_diff,
+                'average_diff': (left_diff + right_diff) / 2
+            })
+        
+        # 결과 정리
+        result = {
+            "reference_angle": reference_angle,
+            "vertical_angles": vertical_angles,
+            "tilt_differences": tilt_differences,
+            "summary": {
+                "total_contours": len(contours),
+                "average_left_tilt": np.mean([d['left_diff'] for d in tilt_differences]) if tilt_differences else 0,
+                "average_right_tilt": np.mean([d['right_diff'] for d in tilt_differences]) if tilt_differences else 0,
+                "average_overall_tilt": np.mean([d['average_diff'] for d in tilt_differences]) if tilt_differences else 0
+            }
+        }
+        
         return result
 
     @staticmethod
