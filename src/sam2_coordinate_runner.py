@@ -11,16 +11,16 @@ from utils import Geometry, ArUcoMarkerDetector, ImageLoader
 matplotlib.use('TkAgg')
 
 
-def detect_aruco_marker_contour(image_name: str) -> Tuple[Optional[np.ndarray], Optional[dict]]:
-    """ArUco 마커를 검출하고 정규화된 컨투어와 포즈 데이터를 반환
+def detect_aruco_markers(image_name: str) -> Tuple[List[np.ndarray], Optional[dict]]:
+    """ArUco 마커들을 검출하고 정규화된 컨투어들과 포즈 데이터를 반환
 
     Args:
         image_name: 이미지 파일 이름
 
     Returns:
-        튜플: (정규화된 ArUco 마커 컨투어, ArUco 포즈 데이터 딕셔너리)
-        - 컨투어: 4x2 numpy array 또는 None
-        - 포즈 데이터: corners, ids, r_vectors, t_vectors 포함 딕셔너리 또는 None
+        튜플: (정규화된 ArUco 마커 컨투어들의 리스트, ArUco 포즈 데이터 딕셔너리)
+        - 컨투어들: ArUco 마커 컨투어들의 리스트 (각각 4x2 numpy array)
+        - 포즈 데이터: corners, ids, r_vectors, t_vectors, centroids 포함 딕셔너리 또는 None
     """
     # ArUco detector 초기화 (기본 4x4_50 딕셔너리, 36mm 마커 크기 사용)
     detector = ArUcoMarkerDetector(
@@ -38,42 +38,57 @@ def detect_aruco_marker_contour(image_name: str) -> Tuple[Optional[np.ndarray], 
         image = cv2.imread(image_path)
         if image is None:
             raise FileNotFoundError(f"Image not found: {image_path}")
-        
+
         # 마커 검출
         corners, ids, rejected = detector.detect_markers(image)
-        
+
         if ids is None or len(ids) == 0:
             print("No ArUco markers detected in the image.")
-            return None, None
+            return [], None
 
         # 포즈 추정
         r_vectors, t_vectors = detector.estimate_pose(corners)
-        
-        # 첫 번째 마커의 corners 추출 및 정규화
-        first_marker_corners = np.array(corners[0][0], dtype=np.float32)
-        normalized_contour = Geometry.normalize_rectangle_vertices(first_marker_corners)
-        
+
+        # 모든 마커의 corners 추출 및 정규화
+        normalized_contours = []
+        centroids = []
+
+        for i in range(len(ids)):
+            marker_corners = np.array(corners[i][0], dtype=np.float32)
+            normalized_contour = Geometry.normalize_rectangle_vertices(
+                marker_corners)
+            normalized_contours.append(normalized_contour)
+
+            # 중심점 계산
+            centroid = np.mean(marker_corners, axis=0)
+            centroids.append(centroid)
+
         # ArUco 데이터 딕셔너리 생성
         aruco_data = {
             'corners': corners,
             'ids': ids,
             'r_vectors': r_vectors,
             't_vectors': t_vectors,
-            'detector': detector,  # 나중에 draw_markers 메서드 사용을 위해
-            'marker_id': int(ids[0][0])
+            'detector': detector,
+            'marker_ids': [int(id[0]) for id in ids],
+            'centroids': centroids,
+            'count': len(ids)
         }
-        
-        print(f"ArUco marker detected - ID: {aruco_data['marker_id']}")
+
+        print(
+            f"ArUco markers detected - Count: {aruco_data['count']}, IDs: {aruco_data['marker_ids']}")
         if r_vectors and t_vectors:
-            # 첫 번째 마커의 오리엔테이션 정보 출력
-            roll, pitch, yaw = detector.get_marker_orientation(r_vectors[0])
-            print(f"  Rotation - Roll: {roll:.2f}°, Pitch: {pitch:.2f}°, Yaw: {yaw:.2f}°")
-            
-        return normalized_contour, aruco_data
+            for i, marker_id in enumerate(aruco_data['marker_ids']):
+                roll, pitch, yaw = detector.get_marker_orientation(
+                    r_vectors[i])
+                print(
+                    f"  Marker {marker_id} - Roll: {roll:.2f}°, Pitch: {pitch:.2f}°, Yaw: {yaw:.2f}°")
+
+        return normalized_contours, aruco_data
 
     except Exception as e:
-        print(f"Error detecting ArUco marker: {e}")
-        return None, None
+        print(f"Error detecting ArUco markers: {e}")
+        return [], None
 
 
 def segment_objects_from_points(image_name: str, coordinates: List[tuple]) -> Tuple[List[np.ndarray], List[np.ndarray]]:
@@ -118,23 +133,10 @@ def segment_objects_from_boxes(image_name: str, boxes: List[tuple]) -> Tuple[Lis
     return masks, contours
 
 
-def visualize_multiple_contours_overlay(image_name: str, contours_list: List[List[np.ndarray]]) -> None:
-    """여러 세트의 정규화된 컨투어들을 하나의 이미지에 오버레이하여 시각화
-
-    Args:
-        image_name: 이미지 파일 이름
-        contours_list: 여러 세트의 컨투어 리스트들
-    """
-    # 이미지 로드
-    image = ImageLoader.load_image(image_name)
-
-    # 오버레이 시각화
-    Visualizer.show_all_normalized_contours_overlay(image, contours_list)
-
-def visualize_contours_with_aruco_pose(image_name: str, contours_list: List[np.ndarray], 
+def visualize_contours_with_aruco_pose(image_name: str, contours_list: List[np.ndarray],
                                        aruco_data: Optional[dict] = None) -> None:
     """컨투어와 ArUco 마커 포즈를 함께 시각화하는 향상된 함수
-    
+
     Args:
         image_name: 이미지 파일 이름
         contours_list: 정규화된 컨투어들의 리스트
@@ -142,54 +144,71 @@ def visualize_contours_with_aruco_pose(image_name: str, contours_list: List[np.n
     """
     # 이미지 로드
     image = ImageLoader.load_image(image_name)
-    
+
     # 향상된 시각화 호출
     Visualizer.show_contours_and_aruco_pose(image, contours_list, aruco_data)
 
 
-def analyze_contour_tilt_differences(base_contour: np.ndarray, contours: List[np.ndarray], visualize: bool = True) -> dict:
-    """ArUco 마커를 기준으로 컨투어들의 기울기 차이를 분석하는 함수
+def analyze_vertical_tilt_differences(aruco_contours: List[np.ndarray], aruco_data: Optional[dict],
+                                      contours: List[np.ndarray], visualize: bool = True, image_name: str = None) -> dict:
+    """ArUco 마커 기준으로 컨투어들의 수직선 기울기 차이를 분석하는 함수
 
     Args:
-        base_contour: 기준이 되는 ArUco 마커의 정규화된 컨투어
+        aruco_contours: ArUco 마커들의 정규화된 컨투어 리스트
+        aruco_data: ArUco 마커 데이터
         contours: 비교할 객체들의 정규화된 컨투어 리스트
         visualize: 결과를 시각화할지 여부 (기본값: True)
 
     Returns:
-        Tilt difference analysis results
+        Vertical tilt difference analysis results
     """
-    if base_contour is None or not contours:
-        return {"error": "Invalid base_contour or contours"}
+    if not contours:
+        return {"error": "No contours to analyze"}
 
-    # Geometry 클래스의 메서드를 직접 호출하여 분석
-    result = Geometry.analyze_tilt_from_base_contour(base_contour, contours)
+    # ArUco 마커가 있는 경우 기준 각도 계산
+    if aruco_contours and aruco_data:
+        reference_angle = Geometry.calculate_reference_angle_from_markers(
+            aruco_contours, aruco_data)
+    else:
+        # ArUco 마커가 없는 경우 수직선(0도)을 기준으로 사용
+        reference_angle = 0.0
+        print("No ArUco markers detected, using vertical line (0°) as reference")
+
+    # 수직선 기울기 차이 분석
+    result = Geometry.analyze_vertical_tilt_differences(
+        reference_angle, contours)
 
     # Print results
     if "error" in result:
         print(f"Error: {result['error']}")
         return result
 
-    print(f"\n=== ArUco-based Contour Tilt Difference Analysis Results ===")
-    print(f"Base: ArUco Marker")
-    print(f"Base contour side angles: {result['base_angles']}")
+    print(f"=== Vertical Tilt Difference Analysis Results ===")
+    print(f"Reference angle: {result['reference_angle']:.2f}°")
     print(f"Total comparison contours: {result['summary']['total_contours']}")
 
     if result['tilt_differences']:
-        print(f"\nTilt differences from ArUco marker (degrees):")
+        print(f"Vertical line tilt differences from reference (degrees):")
         for i, diff in enumerate(result['tilt_differences']):
-            print(f"  Object {i+1}: {diff}")
+            print(f"  Object {i+1}:")
+            print(f"    Left vertical line: {diff['left_diff']:.2f}°")
+            print(f"    Right vertical line: {diff['right_diff']:.2f}°")
+            print(f"    Average: {diff['average_diff']:.2f}°")
 
-        if result['summary']['average_tilt_per_side']:
-            print(f"\nAverage tilt difference by side:")
-            sides = ['Top', 'Right', 'Bottom', 'Left']
-            for i, avg_tilt in enumerate(result['summary']['average_tilt_per_side']):
-                print(f"  {sides[i]} side: {avg_tilt:.2f}°")
+        print(f"Summary:")
+        print(
+            f"  Average left tilt: {result['summary']['average_left_tilt']:.2f}°")
+        print(
+            f"  Average right tilt: {result['summary']['average_right_tilt']:.2f}°")
+        print(
+            f"  Average overall tilt: {result['summary']['average_overall_tilt']:.2f}°")
 
     # Visualization
     if visualize and result['tilt_differences']:
-        print("\n=== Angle Difference Visualization (ArUco as base) ===")
-        Visualizer.visualize_angle_differences(
-            base_contour, contours, result)
+        print("=== Vertical Line Visualization ===")
+        # Load image for visualization background if image_name is provided
+        image = ImageLoader.load_image(image_name) if image_name else None
+        Visualizer.visualize_vertical_angle_differences(reference_angle, contours, result, image)
 
     return result
 
@@ -199,7 +218,7 @@ if __name__ == "__main__":
 
     try:
         # 먼저 ArUco 마커 검출 (컨투어와 포즈 데이터 모두 가져오기)
-        aruco_contour, aruco_data = detect_aruco_marker_contour(FILE_NAME)
+        aruco_contours, aruco_data = detect_aruco_markers(FILE_NAME)
 
         # 사용자 입력 수집
         collector = CoordinateCollector(FILE_NAME, mode='box')
@@ -216,15 +235,10 @@ if __name__ == "__main__":
             visualize_contours_with_aruco_pose(FILE_NAME, contours, aruco_data)
 
             # Tilt difference analysis with ArUco as base
-            if aruco_contour is not None and contours:
-                print("\n=== Point-based Tilt Analysis (ArUco as base) ===")
-                analyze_contour_tilt_differences(aruco_contour, contours)
-            elif contours and len(contours) > 1:
-                # Fallback: 첫 번째 객체를 base로 사용
-                print(
-                    "\n=== Point-based Contour Tilt Analysis (No ArUco, using first object as base) ===")
-                result = Geometry.analyze_tilt_from_contours(
-                    contours, base_index=0)
+            # 새로운 수직선 기울기 분석
+            print("=== Point-based Vertical Tilt Analysis ===")
+            analyze_vertical_tilt_differences(
+                aruco_contours, aruco_data, contours, visualize=True, image_name=FILE_NAME)
 
         # Box-based processing
         if boxes:
@@ -236,15 +250,10 @@ if __name__ == "__main__":
             visualize_contours_with_aruco_pose(FILE_NAME, contours, aruco_data)
 
             # Tilt difference analysis with ArUco as base
-            if aruco_contour is not None and contours:
-                print("\n=== Box-based Tilt Analysis (ArUco as base) ===")
-                analyze_contour_tilt_differences(aruco_contour, contours)
-            elif contours and len(contours) > 1:
-                # Fallback: 첫 번째 객체를 base로 사용
-                print(
-                    "\n=== Box-based Contour Tilt Analysis (No ArUco, using first object as base) ===")
-                result = Geometry.analyze_tilt_from_contours(
-                    contours, base_index=0)
+            # 새로운 수직선 기울기 분석
+            print("=== Box-based Vertical Tilt Analysis ===")
+            analyze_vertical_tilt_differences(
+                aruco_contours, aruco_data, contours, visualize=True, image_name=FILE_NAME)
 
     except FileNotFoundError as e:
         print(f"Error: {e}")
