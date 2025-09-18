@@ -2,9 +2,18 @@ import torch
 
 
 class DeviceManager:
+    """
+    PyTorch 디바이스 관리 클래스
+    """
+    
     @staticmethod
     def get_device() -> torch.device:
-        """최적 연산 디바이스 자동 선택"""
+        """
+        최적 연산 디바이스 자동 선택
+        
+        Returns:
+            사용 가능한 최적의 torch.device (CUDA, MPS, 또는 CPU)
+        """
         if torch.cuda.is_available():
             device = torch.device("cuda")
         elif torch.backends.mps.is_available():
@@ -17,7 +26,12 @@ class DeviceManager:
 
     @staticmethod
     def configure_device(device: torch.device) -> None:
-        """디바이스별 최적화 옵션 설정 적용"""
+        """
+        디바이스별 최적화 옵션 설정 적용
+        
+        Args:
+            device: 설정할 torch.device
+        """
         if device.type == "cuda":
             torch.autocast("cuda", dtype=torch.bfloat16).__enter__()
             if torch.cuda.get_device_properties(0).major >= 8:

@@ -4,8 +4,22 @@ from typing import List, Tuple
 
 
 class Geometry:
+    """
+    기하학적 연산 유틸리티 클래스
+    
+    마스크에서 contour 추출, 사각형 정규화, 기울기 분석 등의 기능 제공
+    """
     @staticmethod
     def _prepare_mask(mask: np.ndarray) -> np.ndarray:
+        """
+        마스크를 contour 추출에 적합한 형식으로 변환
+        
+        Args:
+            mask: 입력 마스크 array
+            
+        Returns:
+            uint8 형식의 마스크 array
+        """
         if mask is None:
             return np.zeros((0, 0), dtype=np.uint8)
         if mask.dtype != np.uint8:
@@ -16,7 +30,15 @@ class Geometry:
 
     @staticmethod
     def extract_contour(mask: np.ndarray) -> np.ndarray:
-        """마스크에서 최대 면적 외곽 윤곽선 추출"""
+        """
+        마스크에서 최대 면적 외곽 윤곽선 추출
+        
+        Args:
+            mask: 입력 마스크 array
+            
+        Returns:
+            최대 면적 contour의 좌표 array
+        """
         prepared = Geometry._prepare_mask(mask)
         if prepared.size == 0 or prepared.max() == 0:
             return np.array([])
@@ -30,7 +52,15 @@ class Geometry:
 
     @staticmethod
     def extract_rectangle_contour(mask: np.ndarray) -> np.ndarray:
-        """마스크 윤곽선을 4각형으로 근사화하여 정규화된 꼭짓점 추출"""
+        """
+        마스크 윤곽선을 4각형으로 근사화하여 정규화된 꼭짓점 추출
+        
+        Args:
+            mask: 입력 마스크 array
+            
+        Returns:
+            정규화된 4개 꼭짓점의 좌표 array (4x2)
+        """
         prepared = Geometry._prepare_mask(mask)
         if prepared.size == 0 or prepared.max() == 0:
             return np.array([])
