@@ -8,9 +8,20 @@ from matplotlib.axes import Axes
 
 
 class Visualizer:
+    """
+    시각화 유틸리티 클래스
+
+    마스크, contour, ArUco 마커, 기울기 분석 결과 등의 시각화 기능 제공
+    """
     @staticmethod
     def show_masks_on_image(image: np.ndarray, masks: List[np.ndarray]) -> None:
-        """이미지 위에 마스크 오버레이 표시"""
+        """
+        이미지 위에 마스크 오버레이 표시
+
+        Args:
+            image: 배경 이미지 array
+            masks: 표시할 마스크 list
+        """
         plt.figure(figsize=(10, 10))
         plt.imshow(image)
         for mask in masks:
@@ -21,7 +32,15 @@ class Visualizer:
 
     @staticmethod
     def show_mask(mask: np.ndarray, ax: Axes, random_color: bool = False, borders: bool = True) -> None:
-        """단일 마스크 렌더링 및 경계선 표시"""
+        """
+        단일 마스크 렌더링 및 경계선 표시
+
+        Args:
+            mask: 표시할 마스크 array
+            ax: matplotlib Axes 객체
+            random_color: 랜덤 색상 사용 여부
+            borders: 경계선 표시 여부
+        """
         if random_color:
             color = np.concatenate(
                 [np.random.random(3), np.array([0.6])], axis=0)
@@ -42,7 +61,13 @@ class Visualizer:
 
     @staticmethod
     def show_contours_on_image(image: np.ndarray, contours: List[np.ndarray]) -> None:
-        """이미지 위에 윤곽선 및 각도 정보 표시"""
+        """
+        이미지 위에 윤곽선 및 각도 정보 표시
+
+        Args:
+            image: 배경 이미지 array
+            contours: 표시할 contour list
+        """
         plt.figure(figsize=(10, 10))
         plt.imshow(image)
         ax = plt.gca()
@@ -206,13 +231,6 @@ class Visualizer:
                         f'{obj_idx + 1}-{vertex_labels[vertex_idx]}',
                         fontsize=8, fontweight='bold', color='black',
                         bbox=dict(facecolor='white', alpha=0.8, edgecolor='black', pad=1))
-
-        # ArUco 정보 텍스트 추가
-        if aruco_data is not None:
-            marker_id = aruco_data.get('marker_id', 'Unknown')
-            info_text = f"ArUco Marker ID: {marker_id} (with 3D pose axes)"
-            ax.text(10, 30, info_text, fontsize=12, fontweight='bold',
-                    color='white', bbox=dict(facecolor='blue', alpha=0.7, pad=5))
 
         # 제목 설정
         title = f'Enhanced Visualization: {len(valid_contours)} Objects'
@@ -416,9 +434,9 @@ class Visualizer:
 
     @staticmethod
     def visualize_vertical_angle_differences(reference_angle: float, contours: List[np.ndarray],
-                                            vertical_tilt_result: dict, image: np.ndarray = None) -> None:
+                                             vertical_tilt_result: dict, image: np.ndarray = None) -> None:
         """수직선 기울기 차이를 시각화하는 함수
-        
+
         Args:
             reference_angle: 기준 각도 (도 단위)
             contours: 비교할 정규화된 컨투어들의 리스트
@@ -428,169 +446,179 @@ class Visualizer:
         if 'error' in vertical_tilt_result:
             print(f"Visualization Error: {vertical_tilt_result['error']}")
             return
-            
+
         tilt_differences = vertical_tilt_result.get('tilt_differences', [])
         if not tilt_differences:
             print("No tilt differences to visualize")
             return
-            
+
         # Create figure with 4 subplots
         fig = plt.figure(figsize=(16, 12))
-        
+
         # Color palette for different objects
         colors = plt.cm.Set2(np.linspace(0, 1, len(contours)))
-        
+
         # Panel 1: Vertical lines overlay on contours
         ax1 = plt.subplot(2, 2, 1)
-        ax1.set_title('Vertical Lines with Tilt Angles', fontsize=14, fontweight='bold')
-        
+        ax1.set_title('Vertical Lines with Tilt Angles',
+                      fontsize=14, fontweight='bold')
+
         # Draw reference line if non-zero
         if abs(reference_angle) > 0.1:
             # Draw reference vertical line in the center
-            y_center = np.mean([c[:, 1].mean() for c in contours if len(c) == 4])
-            x_center = np.mean([c[:, 0].mean() for c in contours if len(c) == 4])
-            ref_length = max([np.ptp(c[:, 1]) for c in contours if len(c) == 4]) * 0.8
-            
+            y_center = np.mean([c[:, 1].mean()
+                               for c in contours if len(c) == 4])
+            x_center = np.mean([c[:, 0].mean()
+                               for c in contours if len(c) == 4])
+            ref_length = max([np.ptp(c[:, 1])
+                             for c in contours if len(c) == 4]) * 0.8
+
             # Calculate reference line endpoints
             ref_dx = ref_length * np.sin(np.radians(reference_angle))
             ref_dy = ref_length * np.cos(np.radians(reference_angle))
-            
+
             ax1.plot([x_center - ref_dx/2, x_center + ref_dx/2],
-                    [y_center + ref_dy/2, y_center - ref_dy/2],
-                    'k--', linewidth=2, alpha=0.5, label=f'Reference ({reference_angle:.1f}°)')
-        
+                     [y_center + ref_dy/2, y_center - ref_dy/2],
+                     'k--', linewidth=2, alpha=0.5, label=f'Reference ({reference_angle:.1f}°)')
+
         # Draw each contour with its vertical lines
         for i, contour in enumerate(contours):
             if len(contour) != 4:
                 continue
-                
+
             color = colors[i]
-            
+
             # Draw contour outline
             closed_contour = np.vstack([contour, contour[0:1]])
             ax1.plot(closed_contour[:, 0], closed_contour[:, 1],
-                    color=color, linewidth=1.5, alpha=0.5)
-            
+                     color=color, linewidth=1.5, alpha=0.5)
+
             # Draw left vertical line (vertex 0 to vertex 3)
-            ax1.plot([contour[0, 0], contour[3, 0]], 
-                    [contour[0, 1], contour[3, 1]],
-                    color=color, linewidth=3, alpha=0.8)
-            
+            ax1.plot([contour[0, 0], contour[3, 0]],
+                     [contour[0, 1], contour[3, 1]],
+                     color=color, linewidth=3, alpha=0.8)
+
             # Draw right vertical line (vertex 1 to vertex 2)
-            ax1.plot([contour[1, 0], contour[2, 0]], 
-                    [contour[1, 1], contour[2, 1]],
-                    color=color, linewidth=3, alpha=0.8, 
-                    label=f'Object {i+1}')
-            
+            ax1.plot([contour[1, 0], contour[2, 0]],
+                     [contour[1, 1], contour[2, 1]],
+                     color=color, linewidth=3, alpha=0.8,
+                     label=f'Object {i+1}')
+
             # Add angle annotations if we have tilt differences
             if i < len(tilt_differences):
                 left_diff = tilt_differences[i]['left_diff']
                 right_diff = tilt_differences[i]['right_diff']
-                
+
                 # Left line annotation
                 left_mid = (contour[0] + contour[3]) / 2
                 ax1.annotate(f'{left_diff:+.1f}°',
-                           xy=left_mid,
-                           xytext=(-20, 0), textcoords='offset points',
-                           fontsize=10, fontweight='bold',
-                           color=color,
-                           bbox=dict(boxstyle='round,pad=0.3', 
-                                   facecolor='white', alpha=0.8, edgecolor=color))
-                
-                # Right line annotation  
+                             xy=left_mid,
+                             xytext=(-20, 0), textcoords='offset points',
+                             fontsize=10, fontweight='bold',
+                             color=color,
+                             bbox=dict(boxstyle='round,pad=0.3',
+                                       facecolor='white', alpha=0.8, edgecolor=color))
+
+                # Right line annotation
                 right_mid = (contour[1] + contour[2]) / 2
                 ax1.annotate(f'{right_diff:+.1f}°',
-                           xy=right_mid,
-                           xytext=(20, 0), textcoords='offset points',
-                           fontsize=10, fontweight='bold',
-                           color=color,
-                           bbox=dict(boxstyle='round,pad=0.3', 
-                                   facecolor='white', alpha=0.8, edgecolor=color))
-        
+                             xy=right_mid,
+                             xytext=(20, 0), textcoords='offset points',
+                             fontsize=10, fontweight='bold',
+                             color=color,
+                             bbox=dict(boxstyle='round,pad=0.3',
+                                       facecolor='white', alpha=0.8, edgecolor=color))
+
         ax1.legend(loc='upper right')
         ax1.set_aspect('equal')
         ax1.grid(True, alpha=0.3)
         ax1.invert_yaxis()  # Invert y-axis to match image coordinates
-        
+
         # Panel 2: Bar chart for vertical line angles
         ax2 = plt.subplot(2, 2, 2)
-        ax2.set_title('Vertical Line Tilt Differences', fontsize=14, fontweight='bold')
-        
+        ax2.set_title('Vertical Line Tilt Differences',
+                      fontsize=14, fontweight='bold')
+
         if tilt_differences:
             n_objects = len(tilt_differences)
             x = np.arange(n_objects)
             width = 0.35
-            
+
             left_diffs = [d['left_diff'] for d in tilt_differences]
             right_diffs = [d['right_diff'] for d in tilt_differences]
-            
-            bars1 = ax2.bar(x - width/2, left_diffs, width, 
-                          label='Left Line', color='steelblue', alpha=0.8)
+
+            bars1 = ax2.bar(x - width/2, left_diffs, width,
+                            label='Left Line', color='steelblue', alpha=0.8)
             bars2 = ax2.bar(x + width/2, right_diffs, width,
-                          label='Right Line', color='coral', alpha=0.8)
-            
+                            label='Right Line', color='coral', alpha=0.8)
+
             # Add value labels on bars
             for bar in bars1:
                 height = bar.get_height()
                 ax2.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.1f}°',
-                       ha='center', va='bottom' if height >= 0 else 'top',
-                       fontsize=9)
-            
+                         f'{height:.1f}°',
+                         ha='center', va='bottom' if height >= 0 else 'top',
+                         fontsize=9)
+
             for bar in bars2:
                 height = bar.get_height()
                 ax2.text(bar.get_x() + bar.get_width()/2., height,
-                       f'{height:.1f}°',
-                       ha='center', va='bottom' if height >= 0 else 'top',
-                       fontsize=9)
-            
+                         f'{height:.1f}°',
+                         ha='center', va='bottom' if height >= 0 else 'top',
+                         fontsize=9)
+
             # Add reference line at 0
             ax2.axhline(y=0, color='black', linestyle='-', linewidth=1)
-            
+
             ax2.set_xlabel('Object')
             ax2.set_ylabel('Angle Difference from Reference (degrees)')
             ax2.set_xticks(x)
             ax2.set_xticklabels([f'Obj {i+1}' for i in range(n_objects)])
             ax2.legend()
             ax2.grid(True, alpha=0.3)
-        
+
         # Panel 3: Heatmap of tilt differences
         ax3 = plt.subplot(2, 2, 3)
-        ax3.set_title('Tilt Difference Heatmap', fontsize=14, fontweight='bold')
-        
+        ax3.set_title('Tilt Difference Heatmap',
+                      fontsize=14, fontweight='bold')
+
         if tilt_differences:
             # Create matrix for heatmap (objects x [left, right, average])
-            diff_matrix = np.array([[d['left_diff'], d['right_diff'], d['average_diff']] 
+            diff_matrix = np.array([[d['left_diff'], d['right_diff'], d['average_diff']]
                                    for d in tilt_differences])
-            
+
             # Create heatmap
             im = ax3.imshow(diff_matrix.T, cmap='RdBu_r', aspect='auto',
-                          vmin=-max(abs(diff_matrix.min()), abs(diff_matrix.max())),
-                          vmax=max(abs(diff_matrix.min()), abs(diff_matrix.max())))
-            
+                            vmin=-max(abs(diff_matrix.min()),
+                                      abs(diff_matrix.max())),
+                            vmax=max(abs(diff_matrix.min()), abs(diff_matrix.max())))
+
             # Add colorbar
             cbar = plt.colorbar(im, ax=ax3)
-            cbar.set_label('Angle Difference (degrees)', rotation=270, labelpad=15)
-            
+            cbar.set_label('Angle Difference (degrees)',
+                           rotation=270, labelpad=15)
+
             # Add text annotations
             for i in range(diff_matrix.shape[0]):
                 for j in range(diff_matrix.shape[1]):
                     text = ax3.text(i, j, f'{diff_matrix[i, j]:.1f}°',
-                                  ha="center", va="center", 
-                                  color="white" if abs(diff_matrix[i, j]) > 5 else "black",
-                                  fontweight='bold', fontsize=10)
-            
+                                    ha="center", va="center",
+                                    color="white" if abs(
+                                        diff_matrix[i, j]) > 5 else "black",
+                                    fontweight='bold', fontsize=10)
+
             ax3.set_xticks(range(len(tilt_differences)))
-            ax3.set_xticklabels([f'Obj {i+1}' for i in range(len(tilt_differences))])
+            ax3.set_xticklabels(
+                [f'Obj {i+1}' for i in range(len(tilt_differences))])
             ax3.set_yticks(range(3))
             ax3.set_yticklabels(['Left', 'Right', 'Average'])
             ax3.set_xlabel('Object')
-        
+
         # Panel 4: Summary statistics and metrics
         ax4 = plt.subplot(2, 2, 4)
         ax4.set_title('Summary Statistics', fontsize=14, fontweight='bold')
         ax4.axis('off')
-        
+
         # Prepare summary text
         summary = vertical_tilt_result.get('summary', {})
         summary_text = f"""
@@ -604,7 +632,7 @@ Average Tilt (All Objects):
 
 Individual Object Analysis:
 """
-        
+
         # Add individual object details
         for i, diff in enumerate(tilt_differences[:5]):  # Show max 5 objects
             obj_text = f"""
@@ -614,23 +642,23 @@ Object {i+1}:
   • Avg:   {diff['average_diff']:+6.2f}°
 """
             summary_text += obj_text
-        
+
         if len(tilt_differences) > 5:
             summary_text += f"\n... and {len(tilt_differences) - 5} more objects"
-        
+
         # Display summary with formatting
         ax4.text(0.05, 0.95, summary_text, transform=ax4.transAxes,
-                fontsize=11, verticalalignment='top',
-                fontfamily='monospace',
-                bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgray', alpha=0.3))
-        
+                 fontsize=11, verticalalignment='top',
+                 fontfamily='monospace',
+                 bbox=dict(boxstyle='round,pad=0.5', facecolor='lightgray', alpha=0.3))
+
         # Add legend for symbols
         legend_text = "Legend: ✓ < 2° (Good)  ⚠ 2-5° (Warning)  ✗ > 5° (Tilted)"
         ax4.text(0.05, 0.02, legend_text, transform=ax4.transAxes,
-                fontsize=10, fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.3))
-        
-        plt.suptitle('Vertical Line Tilt Analysis Visualization', 
-                    fontsize=16, fontweight='bold')
+                 fontsize=10, fontweight='bold',
+                 bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.3))
+
+        plt.suptitle('Vertical Line Tilt Analysis Visualization',
+                     fontsize=16, fontweight='bold')
         plt.tight_layout()
         plt.show()
